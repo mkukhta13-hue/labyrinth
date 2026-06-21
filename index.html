@@ -1,239 +1,194 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Гра Лабіринт</title>
-    <style>
-        body {
-            background-color: #0f1423;
-            color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            overflow: hidden;
-        }
-        #menu, #game-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        h1 {
-            color: #32ff96;
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px rgba(50, 255, 150, 0.3);
-        }
-        button {
-            background-color: #1e325a;
-            color: white;
-            border: 2px solid #1e325a;
-            padding: 10px 20px;
-            font-size: 18px;
-            font-weight: bold;
-            margin: 10px;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: all 0.3s;
-        }
-        button:hover {
-            background-color: #32ff96;
-            color: #0f1423;
-            border-color: #32ff96;
-            box-shadow: 0 0 15px rgba(50, 255, 150, 0.5);
-        }
-        canvas {
-            border: 2px solid #282d37;
-            background-color: #0f1423;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        }
-        #stats {
-            font-size: 18px;
-            font-weight: bold;
-            margin-top: 15px;
-            letter-spacing: 1px;
-        }
-        #victory-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(10, 15, 30, 0.92);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-        #victory-screen h2 {
-            color: #32ff96;
-            font-size: 32px;
-            margin: 10px 0;
-        }
-        #victory-screen p {
-            font-size: 20px;
-            margin: 5px 0 25px 0;
-        }
-        .cup {
-            font-size: 80px;
-            margin-bottom: 10px;
-            animation: bounce 2s infinite;
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        .hidden { display: none !important; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maze Game</title>
+
+<style>
+body {
+    margin: 0;
+    background: #0f1423;
+    color: white;
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    flex-direction: column;
+}
+
+canvas {
+    background: #0f1423;
+    border: 2px solid #2c3140;
+}
+
+button {
+    margin: 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.hidden { display: none; }
+
+#menu, #game {
+    text-align: center;
+}
+</style>
 </head>
+
 <body>
 
-    <div id="menu">
-        <h1>Оберіть рівень складності:</h1>
-        <button onclick="startGame(11)">Легкий</button>
-        <button onclick="startGame(15)">Середній</button>
-        <button onclick="startGame(21)">Складний</button>
-    </div>
+<div id="menu">
+    <h1>Вибір складності</h1>
+    <button onclick="startGame(11)">Легкий</button>
+    <button onclick="startGame(15)">Середній</button>
+    <button onclick="startGame(21)">Складний</button>
+</div>
 
-    <div id="game-container" class="hidden">
-        <canvas id="mazeCanvas" width="600" height="600"></canvas>
-        <div id="stats">ХОДИ: <span id="movesCount">0</span> &nbsp;&nbsp;&nbsp; [R] - Нова гра</div>
-    </div>
+<div id="game" class="hidden">
+    <canvas id="canvas" width="600" height="600"></canvas>
+    <p>Ходи: <span id="moves">0</span></p>
+</div>
 
-    <div id="victory-screen">
-        <div class="cup">🏆</div>
-        <h2>ВІТАЮ З ПЕРЕМОГОЮ!</h2>
-        <p id="finalMoves">Ви пройшли лабіринт за 0 ходів!</p>
-        <button onclick="resetToMenu()">Грати знову</button>
-    </div>
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 
-    <script>
-        const canvas = document.getElementById('mazeCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        let size, cellSize;
-        let playerX, playerY, moves;
-        let walls = [];
-        let isGameWon = false;
+let size, cell;
+let grid = [];
+let player = { x: 1, y: 1 };
+let moves = 0;
 
-        function startGame(chosenSize) {
-            size = chosenSize;
-            cellSize = 600 / size;
-            document.getElementById('menu').classList.add('hidden');
-            document.getElementById('game-container').classList.remove('hidden');
-            initGame();
+function startGame(s) {
+    size = s;
+    cell = canvas.width / size;
+
+    document.getElementById("menu").classList.add("hidden");
+    document.getElementById("game").classList.remove("hidden");
+
+    init();
+}
+
+function init() {
+    moves = 0;
+    player = { x: 1, y: 1 };
+
+    document.getElementById("moves").innerText = moves;
+
+    createGrid();
+    generateMaze(1, 1);
+    addExtraWalls(0.15);
+
+    draw();
+}
+
+function createGrid() {
+    grid = Array.from({ length: size }, () =>
+        Array(size).fill(true)
+    );
+}
+
+// DFS генерація лабіринту (правильна)
+function generateMaze(x, y) {
+    grid[y][x] = false;
+
+    let dirs = shuffle([
+        [0, -2],
+        [2, 0],
+        [0, 2],
+        [-2, 0]
+    ]);
+
+    for (let [dx, dy] of dirs) {
+        let nx = x + dx;
+        let ny = y + dy;
+
+        if (inside(nx, ny) && grid[ny][nx]) {
+            grid[y + dy / 2][x + dx / 2] = false;
+            generateMaze(nx, ny);
         }
+    }
+}
 
-        function initGame() {
-            playerX = 1;
-            playerY = 1;
-            moves = 0;
-            isGameWon = false;
-            document.getElementById('victory-screen').style.display = 'none';
-            document.getElementById('movesCount').innerText = moves;
-            
-            generateSmartMaze();
-            draw();
-        }
-
-        function generateSmartMaze() {
-            walls = [];
-            for (let i = 0; i < size; i++) {
-                walls.push(new Array(size).fill(true));
-            }
-            carvePassage(1, 1);
-            walls[size - 2][size - 2] = false;
-        }
-
-        function carvePassage(cx, cy) {
-            walls[cy][cx] = false;
-            let dirs = [0, 1, 2, 3];
-            dirs.sort(() => Math.random() - 0.5);
-
-            for (let dir of dirs) {
-                let nx = cx, ny = cy;
-                let mx = cx, my = cy;
-
-                if (dir === 0) { ny -= 2; my -= 1; }
-                else if (dir === 1) { nx += 2; mx += 1; }
-                else if (dir === 2) { ny += 2; my += 1; }
-                else if (dir === 3) { nx -= 2; mx -= 1; }
-
-                if (nx > 0 && nx < size - 1 && ny > 0 && ny < size - 1) {
-                    if (walls[ny][nx]) {
-                        walls[my][mx] = false;
-                        carvePassage(nx, ny);
-                    }
-                }
+// додаткова складність
+function addExtraWalls(density) {
+    for (let y = 1; y < size - 1; y++) {
+        for (let x = 1; x < size - 1; x++) {
+            if (Math.random() < density) {
+                grid[y][x] = true;
             }
         }
+    }
 
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+    grid[1][1] = false;
+    grid[size - 2][size - 2] = false;
+}
 
-            for (let row = 0; row < size; row++) {
-                for (let col = 0; col < size; col++) {
-                    if (walls[row][col]) {
-                        ctx.fillStyle = '#282d37';
-                        ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
-                        ctx.strokeStyle = '#3c4150';
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(col * cellSize + 2, row * cellSize + 2, cellSize - 4, cellSize - 4);
-                    } else {
-                        ctx.strokeStyle = '#1e325a';
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(col * cellSize, row * cellSize, cellSize, cellSize);
-                    }
-                }
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            if (grid[y][x]) {
+                ctx.fillStyle = "#2c3140";
+                ctx.fillRect(x * cell, y * cell, cell, cell);
             }
-
-            ctx.fillStyle = '#ff3264';
-            ctx.fillRect((size - 2) * cellSize + 4, (size - 2) * cellSize + 4, cellSize - 8, cellSize - 8);
-
-            ctx.fillStyle = '#32ff96';
-            ctx.beginPath();
-            ctx.arc(playerX * cellSize + cellSize / 2, playerY * cellSize + cellSize / 2, cellSize / 2 - 5, 0, Math.PI * 2);
-            ctx.fill();
         }
+    }
 
-        window.addEventListener('keydown', (e) => {
-            if (document.getElementById('game-container').classList.contains('hidden') || isGameWon) return;
+    // фініш
+    ctx.fillStyle = "red";
+    ctx.fillRect((size - 2) * cell, (size - 2) * cell, cell, cell);
 
-            if (e.key === 'r'  e.key === 'R'  e.key === 'к' || e.key === 'К') {
-                initGame();
-                return;
-            }
+    // гравець
+    ctx.fillStyle = "lime";
+    ctx.beginPath();
+    ctx.arc(
+        player.x * cell + cell / 2,
+        player.y * cell + cell / 2,
+        cell / 3,
+        0,
+        Math.PI * 2
+    );
+    ctx.fill();
+}
 
-            let prevX = playerX;
-            let prevY = playerY;
+window.addEventListener("keydown", (e) => {
+    let nx = player.x;
+    let ny = player.y;
 
-            if (e.key === 'ArrowUp') { if (playerY > 0 && !walls[playerY - 1][playerX]) playerY--; }
-            else if (e.key === 'ArrowDown') { if (playerY < size - 1 && !walls[playerY + 1][playerX]) playerY++; }
-            else if (e.key === 'ArrowLeft') { if (playerX > 0 && !walls[playerY][playerX - 1]) playerX--; }
-            else if (e.key === 'ArrowRight') { if (playerX < size - 1 && !walls[playerY][playerX + 1]) playerX++; }
+    if (e.key === "ArrowUp") ny--;
+    if (e.key === "ArrowDown") ny++;
+    if (e.key === "ArrowLeft") nx--;
+    if (e.key === "ArrowRight") nx++;
 
-            if (playerX !== prevX || playerY !== prevY) {
-                moves++;
-                document.getElementById('movesCount').innerText = moves;
-                draw();
-            }
+    if (!grid[ny][nx]) {
+        player.x = nx;
+        player.y = ny;
 
-            if (playerX === size - 2 && playerY === size - 2) {
-                isGameWon = true;
-                document.getElementById('finalMoves').innerText = Ви пройшли лабіринт за ${moves} ходів!;
-                document.getElementById('victory-screen').style.display = 'flex';
-            }
-        });
+        moves++;
+        document.getElementById("moves").innerText = moves;
+    }
 
-        function resetToMenu() {
-            document.getElementById('victory-screen').style.display = 'none';
-            document.getElementById('game-container').classList.add('hidden');
-            document.getElementById('menu').classList.remove('hidden');
-        }
-    </script>
+    draw();
+
+    if (player.x === size - 2 && player.y === size - 2) {
+        alert("Перемога! Ходи: " + moves);
+        document.getElementById("menu").classList.remove("hidden");
+        document.getElementById("game").classList.add("hidden");
+    }
+});
+
+function inside(x, y) {
+    return x > 0 && y > 0 && x < size - 1 && y < size - 1;
+}
+
+function shuffle(arr) {
+    return arr.sort(() => Math.random() - 0.5);
+}
+</script>
+
 </body>
 </html>
