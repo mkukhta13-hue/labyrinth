@@ -93,4 +93,147 @@
 <body>
 
     <div id="menu">
-        <h1>Оберіть рівень скла
+        <h1>Оберіть рівень складності:</h1>
+        <button onclick="startGame(11)">Легкий</button>
+        <button onclick="startGame(15)">Середній</button>
+        <button onclick="startGame(21)">Складний</button>
+    </div>
+
+    <div id="game-container" class="hidden">
+        <canvas id="mazeCanvas" width="600" height="600"></canvas>
+        <div id="stats">ХОДИ: <span id="movesCount">0</span> &nbsp;&nbsp;&nbsp; [R] - Нова гра</div>
+    </div>
+
+    <div id="victory-screen">
+        <div class="cup">🏆</div>
+        <h2>ВІТАЮ З ПЕРЕМОГОЮ!</h2>
+        <p id="finalMoves">Ви пройшли лабіринт за 0 ходів!</p>
+        <button onclick="resetToMenu()">Грати знову</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mazeCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let size, cellSize;
+        let playerX, playerY, moves;
+        let walls = [];
+        let isGameWon = false;
+
+        function startGame(chosenSize) {
+            size = chosenSize;
+            cellSize = 600 / size;
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('game-container').classList.remove('hidden');
+            initGame();
+        }
+
+        function initGame() {
+            playerX = 1;
+            playerY = 1;
+            moves = 0;
+            isGameWon = false;
+            document.getElementById('victory-screen').style.display = 'none';
+            document.getElementById('movesCount').innerText = moves;
+            
+            generateSmartMaze();
+            draw();
+        }
+
+        function generateSmartMaze() {
+            walls = [];
+            for (let i = 0; i < size; i++) {
+                walls.push(new Array(size).fill(true));
+            }
+            carvePassage(1, 1);
+            walls[size - 2][size - 2] = false;
+        }
+
+        function carvePassage(cx, cy) {
+            walls[cy][cx] = false;
+            let dirs = [0, 1, 2, 3];
+            dirs.sort(() => Math.random() - 0.5);
+
+            for (let dir of dirs) {
+                let nx = cx, ny = cy;
+                let mx = cx, my = cy;
+
+                if (dir === 0) { ny -= 2; my -= 1; }
+                else if (dir === 1) { nx += 2; mx += 1; }
+                else if (dir === 2) { ny += 2; my += 1; }
+                else if (dir === 3) { nx -= 2; mx -= 1; }
+
+                if (nx > 0 && nx < size - 1 && ny > 0 && ny < size - 1) {
+                    if (walls[ny][nx]) {
+                        walls[my][mx] = false;
+                        carvePassage(nx, ny);
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let row = 0; row < size; row++) {
+                for (let col = 0; col < size; col++) {
+                    if (walls[row][col]) {
+                        ctx.fillStyle = '#282d37';
+                        ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+                        ctx.strokeStyle = '#3c4150';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(col * cellSize + 2, row * cellSize + 2, cellSize - 4, cellSize - 4);
+                    } else {
+                        ctx.strokeStyle = '#1e325a';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(col * cellSize, row * cellSize, cellSize, cellSize);
+                    }
+                }
+            }
+
+            ctx.fillStyle = '#ff3264';
+            ctx.fillRect((size - 2) * cellSize + 4, (size - 2) * cellSize + 4, cellSize - 8, cellSize - 8);
+
+            ctx.fillStyle = '#32ff96';
+            ctx.beginPath();
+            ctx.arc(playerX * cellSize + cellSize / 2, playerY * cellSize + cellSize / 2, cellSize / 2 - 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (document.getElementById('game-container').classList.contains('hidden') || isGameWon) return;
+
+            if (e.key === 'r'  e.key === 'R'  e.key === 'к' || e.key === 'К') {
+                initGame();
+                return;
+            }
+
+            let prevX = playerX;
+            let prevY = playerY;
+
+            if (e.key === 'ArrowUp') { if (playerY > 0 && !walls[playerY - 1][playerX]) playerY--; }
+            else if (e.key === 'ArrowDown') { if (playerY < size - 1 && !walls[playerY + 1][playerX]) playerY++; }
+            else if (e.key === 'ArrowLeft') { if (playerX > 0 && !walls[playerY][playerX - 1]) playerX--; }
+            else if (e.key === 'ArrowRight') { if (playerX < size - 1 && !walls[playerY][playerX + 1]) playerX++; }
+
+            if (playerX !== prevX || playerY !== prevY) {
+                moves++;
+                document.getElementById('movesCount').innerText = moves;
+                draw();
+            }
+
+            if (playerX === size - 2 && playerY === size - 2) {
+                isGameWon = true;
+                document.getElementById('finalMoves').innerText = Ви пройшли лабіринт за ${moves} ходів!;
+                document.getElementById('victory-screen').style.display = 'flex';
+            }
+        });
+
+        function resetToMenu() {
+            document.getElementById('victory-screen').style.display = 'none';
+            document.getElementById('game-container').classList.add('hidden');
+            document.getElementById('menu').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
