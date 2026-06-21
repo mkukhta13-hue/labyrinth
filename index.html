@@ -2,7 +2,6 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Maze Game</title>
 
 <style>
@@ -10,183 +9,124 @@ body {
     margin: 0;
     background: #0f1423;
     color: white;
-    font-family: Arial, sans-serif;
     display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-family: Arial;
 }
 
 canvas {
+    border: 2px solid #333;
     background: #0f1423;
-    border: 2px solid #2c3140;
-}
-
-button {
-    margin: 10px;
-    padding: 10px 20px;
-    font-size: 16px;
-    cursor: pointer;
 }
 
 .hidden { display: none; }
-
-#menu, #game {
-    text-align: center;
-}
+button { padding: 10px 20px; margin: 5px; }
 </style>
 </head>
 
 <body>
 
 <div id="menu">
-    <h1>Вибір складності</h1>
-    <button onclick="startGame(11)">Легкий</button>
-    <button onclick="startGame(15)">Середній</button>
-    <button onclick="startGame(21)">Складний</button>
+    <h2>Складність</h2>
+    <button onclick="start(11)">Легко</button>
+    <button onclick="start(15)">Середньо</button>
+    <button onclick="start(21)">Складно</button>
 </div>
 
-<div id="game" class="hidden">
-    <canvas id="canvas" width="600" height="600"></canvas>
-    <p>Ходи: <span id="moves">0</span></p>
-</div>
+<canvas id="c" width="600" height="600"></canvas>
 
 <script>
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+const c = document.getElementById("c");
+const ctx = c.getContext("2d");
 
 let size, cell;
-let grid = [];
-let player = { x: 1, y: 1 };
-let moves = 0;
+let map = [];
+let p = {x:1,y:1};
 
-function startGame(s) {
+function start(s){
     size = s;
-    cell = canvas.width / size;
+    cell = c.width / size;
 
     document.getElementById("menu").classList.add("hidden");
-    document.getElementById("game").classList.remove("hidden");
 
-    init();
-}
-
-function init() {
-    moves = 0;
-    player = { x: 1, y: 1 };
-
-    document.getElementById("moves").innerText = moves;
-
-    createGrid();
-    generateMaze(1, 1);
-    addExtraWalls(0.15);
-
+    build();
     draw();
 }
 
-function createGrid() {
-    grid = Array.from({ length: size }, () =>
-        Array(size).fill(true)
-    );
+function build(){
+    map = Array.from({length:size}, ()=>Array(size).fill(true));
+
+    carve(1,1);
+
+    map[1][1] = false;
+    map[size-2][size-2] = false;
 }
 
-// DFS генерація лабіринту (правильна)
-function generateMaze(x, y) {
-    grid[y][x] = false;
+// простий DFS (СТАБІЛЬНИЙ)
+function carve(x,y){
+    map[y][x] = false;
 
     let dirs = shuffle([
-        [0, -2],
-        [2, 0],
-        [0, 2],
-        [-2, 0]
+        [0,-2],[2,0],[0,2],[-2,0]
     ]);
 
-    for (let [dx, dy] of dirs) {
-        let nx = x + dx;
-        let ny = y + dy;
+    for(let d of dirs){
+        let nx = x + d[0];
+        let ny = y + d[1];
 
-        if (inside(nx, ny) && grid[ny][nx]) {
-            grid[y + dy / 2][x + dx / 2] = false;
-            generateMaze(nx, ny);
+        if(nx>0 && ny>0 && nx<size-1 && ny<size-1 && map[ny][nx]){
+            map[y + d[1]/2][x + d[0]/2] = false;
+            carve(nx,ny);
         }
     }
 }
 
-// додаткова складність
-function addExtraWalls(density) {
-    for (let y = 1; y < size - 1; y++) {
-        for (let x = 1; x < size - 1; x++) {
-            if (Math.random() < density) {
-                grid[y][x] = true;
+function draw(){
+    ctx.clearRect(0,0,600,600);
+
+    for(let y=0;y<size;y++){
+        for(let x=0;x<size;x++){
+            if(map[y][x]){
+                ctx.fillStyle="#2c3140";
+                ctx.fillRect(x*cell,y*cell,cell,cell);
             }
         }
     }
 
-    grid[1][1] = false;
-    grid[size - 2][size - 2] = false;
-}
+    ctx.fillStyle="red";
+    ctx.fillRect((size-2)*cell,(size-2)*cell,cell,cell);
 
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-            if (grid[y][x]) {
-                ctx.fillStyle = "#2c3140";
-                ctx.fillRect(x * cell, y * cell, cell, cell);
-            }
-        }
-    }
-
-    // фініш
-    ctx.fillStyle = "red";
-    ctx.fillRect((size - 2) * cell, (size - 2) * cell, cell, cell);
-
-    // гравець
-    ctx.fillStyle = "lime";
+    ctx.fillStyle="lime";
     ctx.beginPath();
-    ctx.arc(
-        player.x * cell + cell / 2,
-        player.y * cell + cell / 2,
-        cell / 3,
-        0,
-        Math.PI * 2
-    );
+    ctx.arc(p.x*cell+cell/2,p.y*cell+cell/2,cell/3,0,Math.PI*2);
     ctx.fill();
 }
 
-window.addEventListener("keydown", (e) => {
-    let nx = player.x;
-    let ny = player.y;
+window.addEventListener("keydown",(e)=>{
+    let nx=p.x, ny=p.y;
 
-    if (e.key === "ArrowUp") ny--;
-    if (e.key === "ArrowDown") ny++;
-    if (e.key === "ArrowLeft") nx--;
-    if (e.key === "ArrowRight") nx++;
+    if(e.key==="ArrowUp") ny--;
+    if(e.key==="ArrowDown") ny++;
+    if(e.key==="ArrowLeft") nx--;
+    if(e.key==="ArrowRight") nx++;
 
-    if (!grid[ny][nx]) {
-        player.x = nx;
-        player.y = ny;
-
-        moves++;
-        document.getElementById("moves").innerText = moves;
+    if(!map[ny][nx]){
+        p.x=nx;
+        p.y=ny;
     }
 
     draw();
 
-    if (player.x === size - 2 && player.y === size - 2) {
-        alert("Перемога! Ходи: " + moves);
-        document.getElementById("menu").classList.remove("hidden");
-        document.getElementById("game").classList.add("hidden");
+    if(p.x===size-2 && p.y===size-2){
+        alert("Перемога!");
     }
 });
 
-function inside(x, y) {
-    return x > 0 && y > 0 && x < size - 1 && y < size - 1;
-}
-
-function shuffle(arr) {
-    return arr.sort(() => Math.random() - 0.5);
+function shuffle(a){
+    return a.sort(()=>Math.random()-0.5);
 }
 </script>
 
